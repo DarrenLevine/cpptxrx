@@ -1,4 +1,4 @@
-
+/// @brief This is a working example of how to create a interface wrapper using CppTxRx for a UDP socket.
 
 // headers needed for udp sockets
 #include <arpa/inet.h>
