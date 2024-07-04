@@ -411,7 +411,7 @@ namespace interface
                                               transactions.p_recv_op == nullptr &&
                                               transactions.p_close_op == nullptr &&
                                               transactions.p_open_op == nullptr;
-                if (no_active_transactions)
+                if (no_active_transactions && !transactions.idle_in_send_recv)
                     cv.wait(lk, [this]()
                             { return active_ops.is_any(backend::op_bitmasks::ANY_REQUEST); });
 #endif
@@ -462,7 +462,7 @@ namespace interface
                     process_close();
                 else if (transactions.p_open_op != nullptr)
                     process_open();
-                else if (transactions.p_send_op != nullptr || transactions.p_recv_op != nullptr)
+                else if (transactions.p_send_op != nullptr || transactions.p_recv_op != nullptr || transactions.idle_in_send_recv)
                     process_send_receive();
             }
 

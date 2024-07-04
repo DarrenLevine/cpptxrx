@@ -71,6 +71,8 @@ namespace udp
 
         // [[REQUIRED]] Meant to handle a send operation, a receive operation, or both simultaneously.
         // The "transactions.p_send_op", and "transactions.p_receive_op" pointers are not nullptr when their operation is requested.
+        // NOTE: If you have a connection that needs continuous maintenance (like waiting to accept new TCP clients), then you can
+        // set "transactions.idle_in_send_recv = true" and process_send_receive will be run even when no operations have been requested.
         void process_send_receive() override;
 
         // [[only REQUIRED for interface::threadsafe]] Used to wake up a process_open/close/send_receive call that is blocking when another operation is requested.

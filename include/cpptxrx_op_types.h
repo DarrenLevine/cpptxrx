@@ -80,10 +80,11 @@ namespace interface
     // can be efficient, and so that operations can be invalidated/inactive by making them nullptr
     struct op_instructions
     {
-        send_op *p_send_op   = nullptr; // a pointer to an active send operation's arguments, or nullptr for no send operation
-        recv_op *p_recv_op   = nullptr; // a pointer to an active receive operation's arguments, or nullptr for no receive operation
-        open_op *p_open_op   = nullptr; // a pointer to an active open operation's arguments, or nullptr for no open operation
-        close_op *p_close_op = nullptr; // a pointer to an active close operation's arguments, or nullptr for no close operation
+        send_op *p_send_op     = nullptr; // a pointer to an active send operation's arguments, or nullptr for no send operation
+        recv_op *p_recv_op     = nullptr; // a pointer to an active receive operation's arguments, or nullptr for no receive operation
+        open_op *p_open_op     = nullptr; // a pointer to an active open operation's arguments, or nullptr for no open operation
+        close_op *p_close_op   = nullptr; // a pointer to an active close operation's arguments, or nullptr for no close operation
+        bool idle_in_send_recv = false;   // set to true to wait (idle) in "process_send_receive", even if no operation is requested
 
         /// @brief calculate the smallest duration until the timeout of the passed operation pointers (which are allowed to be nullptr)
         /// relative to the passed absolute time
