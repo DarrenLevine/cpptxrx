@@ -6,45 +6,58 @@ A framework for turning existing low-level communication libraries into high-lev
 
 ![license](https://img.shields.io/badge/license-MIT-informational) ![version](https://img.shields.io/badge/version-1.1-blue)
 
+**Table of Contents**
+
+- [Features](#features)
+- [Motivation](#motivation)
+- [Examples](#examples)
+  - [Receive Callbacks](#receive-callbacks-functions-to-get-called-when-new-data-is-received)
+  - [Filters](#filters-data-processing-modules-that-can-be-attached-to-an-interfaces-inputs-or-outputs)
+  - [Chaining](#chaining-combining-data-processing-filters-into-pipelines)
+  - [Constructing interfaces](#constructing-interfaces)
+  - [Using interfaces](#using-interfaces)
+  - [Creating a new Interface](#creating-a-new-interface-in-five-steps)
+- [FAQ](#faq)
+
 ## Features
 
-* **C++17 or greater.**
+- **C++17 or greater.**
 
-* **Header only, with no dependencies beyond the C++ stdlib.**
+- **Header only, with no dependencies beyond the C++ stdlib.**
 
-* **Choose from two main interfaces:**
-  * `interface::thread_safe` - Inherit from this thread-safe base class, and call any method from any thread without worry.
-  * `interface::raw` - Non-thread-safe without the extra thread overhead, but provides access to the same common API and library of compatible features.
+- **Choose from two main interfaces:**
+  - `interface::thread_safe` - Inherit from this thread-safe base class, and call any method from any thread without worry.
+  - `interface::raw` - Non-thread-safe without the extra thread overhead, but provides access to the same common API and library of compatible features.
 
-* **Extensibility:**
-  * `interface::filter` - Plug-and-play data manipulation components, that can apply generic procedures to any send or receive operation, on any interface. They can even be chained together, and will automatically optimize away extra unnecessary data copies. See: [examples/04_chaining_filters.cpp](examples/04_chaining_filters.cpp)
-  * `interface::receive_callback::create` - Use callback functions that process data as it arrives, instead of calling receive manually.
+- **Extensibility:**
+  - `interface::filter` - Plug-and-play data manipulation components, that can apply generic procedures to any send or receive operation, on any interface. They can even be chained together, and will automatically optimize away extra unnecessary data copies. See: [examples/04_chaining_filters.cpp](examples/04_chaining_filters.cpp)
+  - `interface::receive_callback::create` - Use callback functions that process data as it arrives, instead of calling receive manually.
   [examples/03_receive_callbacks.cpp](examples/03_receive_callbacks.cpp)
-  * `interface::abstract` - Polymorphic:
-    * Want to use different data transport mechanisms for different situations or platforms, such as UDP for a simulator, and UART for your target platform? Or just increase ease-of-porting? Just write your code to expect a `interface::abstract` class and use polymorphism. See: [examples/05_using_runtime_polymorphism.cpp](examples/05_using_runtime_polymorphism.cpp) and [examples/06_using_comptime_polymorphism.cpp](examples/06_using_comptime_polymorphism.cpp)
-    * Filters and callbacks also have polymorphic options:
-      * `interface::filter::abstract`
-      * `interface::receive_callback::abstract`
+  - `interface::abstract` - Polymorphic:
+    - Want to use different data transport mechanisms for different situations or platforms, such as UDP for a simulator, and UART for your target platform? Or just increase ease-of-porting? Just write your code to expect a `interface::abstract` class and use polymorphism. See: [examples/05_using_runtime_polymorphism.cpp](examples/05_using_runtime_polymorphism.cpp) and [examples/06_using_comptime_polymorphism.cpp](examples/06_using_comptime_polymorphism.cpp)
+    - Filters and callbacks also have polymorphic options:
+      - `interface::filter::abstract`
+      - `interface::receive_callback::abstract`
 
-* **Pre-made interface implementation(s) for:**
-  * Raw UDP: [include/default_udp_raw.h](include/default_udp_raw.h)
-  * Threadsafe UDP: [include/default_udp.h](include/default_udp.h)
-  * Threadsafe TCP: [include/default_tcp.h](include/default_tcp.h)
-  * ... More to come.
+- **Pre-made interface implementation(s) for:**
+  - Raw UDP: [include/default_udp_raw.h](include/default_udp_raw.h)
+  - Threadsafe UDP: [include/default_udp.h](include/default_udp.h)
+  - Threadsafe TCP: [include/default_tcp.h](include/default_tcp.h)
+  - ... More to come.
 
-* **Pre-made send/receive filters in [include/cpptxrx_filters.h](include/cpptxrx_filters.h) for:**
-  * [SLIP](https://en.wikipedia.org/wiki/Serial_Line_Internet_Protocol): `interface::filters::slip::encode` and `interface::filters::slip::decode`
-  * [Delimiters](https://en.wikipedia.org/wiki/Delimiter): `interface::filters::delimit`
-  * Size-Based Aggregation and Splitting: `interface::filters::enforce_fixed_size` and `interface::filters::split_if_larger`
-  * Repeating: `interface::filters::repeat`
-  * Appending: `interface::filters::append`
-  * ... and more
+- **Pre-made send/receive filters in [include/cpptxrx_filters.h](include/cpptxrx_filters.h) for:**
+  - [SLIP](https://en.wikipedia.org/wiki/Serial_Line_Internet_Protocol): `interface::filters::slip::encode` and `interface::filters::slip::decode`
+  - [Delimiters](https://en.wikipedia.org/wiki/Delimiter): `interface::filters::delimit`
+  - Size-Based Aggregation and Splitting: `interface::filters::enforce_fixed_size` and `interface::filters::split_if_larger`
+  - Repeating: `interface::filters::repeat`
+  - Appending: `interface::filters::append`
+  - ... and more
 
-* **Performance and Safety:**
-  * Threading:
-    * Takes a very simple approach to thread safety: Isolates all your low-level communication library's API calls to a single dedicated thread (construction, opening, sending, receiving, closing, and destruction). Then gives you efficient/safe ways of interfacing with that thread using the cpptxrx API, which behind the scenes uses a single bit-masked integer for speedy communication.
-  * Memory:
-    * Avoids all dynamic memory allocation, such as `std::vector`/`std::function`/etc., with the possible exception of any dynamic allocations your platform's stdlib implementation might need for OS primitives, such as the single `std::thread` instance in the `interface::thread_safe` class. Note that you can still allow dynamically allocated object usage by explicitly using `interface::allow_heap(object)` for filter and callback objects.
+- **Performance and Safety:**
+  - Threading:
+    - Takes a very simple approach to thread safety: Isolates all your low-level communication library's API calls to a single dedicated thread (construction, opening, sending, receiving, closing, and destruction). Then gives you efficient/safe ways of interfacing with that thread using the cpptxrx API, which behind the scenes uses a single bit-masked integer for speedy communication.
+  - Memory:
+    - Avoids all dynamic memory allocation, such as `std::vector`/`std::function`/etc., with the possible exception of any dynamic allocations your platform's stdlib implementation might need for OS primitives, such as the single `std::thread` instance in the `interface::thread_safe` class. Note that you can still allow dynamically allocated object usage by explicitly using `interface::allow_heap(object)` for filter and callback objects.
 
 ## Motivation
 
@@ -54,7 +67,7 @@ In embedded software (space-software and robotics specifically), to make communi
 
 For detailed and runnable examples, see the [examples](examples) folder.
 
-### Receive Callbacks: Functions to get called when new data is receive
+### Receive Callbacks: Functions to get called when new data is received
 
 ```cpp
 using namespace ctr;
@@ -160,7 +173,7 @@ raii_thread thread4([&]() {
 });
 ```
 
-### How to create a new interface in FIVE steps
+### Creating a new Interface in FIVE steps
 
 ```cpp
 // Step 1) include either cpptxrx_threadsafe.h (to make a threadsafe interface) or cpptxrx_raw.h (to create a non threadsafe interface)
@@ -235,7 +248,7 @@ void process_send_receive() final;
 
 So, using that guarantee to help you reason about thread safety, you should be able to write extensions that properly account for the threaded environment.
 
-## A note about why "inheritance" was chosen over "composition"
+### A note about why "inheritance" was chosen over "composition"
 
 A choice between inheritance and composition was made when choosing a wrapping method, since instead of inheriting an interface base:
 
