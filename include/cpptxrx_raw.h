@@ -20,20 +20,12 @@ namespace interface
     /// @brief a inheritable base class for creating non-thread safe CppTxRx interfaces
     ///
     /// @tparam   open_opts_type: options type to use when calling "open"
-    /// @tparam   default_recv_timeout_ns (optional): default recv timeout in ns
-    /// @tparam   default_send_timeout_ns (optional): default send timeout in ns
-    /// @tparam   default_open_timeout_ns (optional): default open timeout in ns
-    /// @tparam   default_clse_timeout_ns (optional): default close timeout in ns
-    template <typename open_opts_type,
-              uint64_t default_recv_timeout_ns = std::chrono::nanoseconds(std::chrono::seconds(30)).count(),
-              uint64_t default_send_timeout_ns = std::chrono::nanoseconds(std::chrono::seconds(1)).count(),
-              uint64_t default_open_timeout_ns = std::chrono::nanoseconds(std::chrono::seconds(1)).count(),
-              uint64_t default_clse_timeout_ns = std::chrono::nanoseconds(std::chrono::seconds(1)).count()>
-    using raw = raw_factory<open_opts_type,
-                            default_recv_timeout_ns,
-                            default_send_timeout_ns,
-                            default_open_timeout_ns,
-                            default_clse_timeout_ns>;
+    /// @tparam   timeouts<...> (optional): default recv, send, open, and close timeouts in ns,
+    ///               only used when no timeout is specfied on the operation.
+    template <typename open_opts_type, typename default_timeouts_type = timeouts<>>
+    using raw = raw_factory<open_opts_type, default_timeouts_type>;
 } // namespace interface
+
+#include "cpptxrx_short_form.h"
 
 #endif // CPPTXRX_RAW_H_

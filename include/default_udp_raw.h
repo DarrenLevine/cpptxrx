@@ -4,8 +4,8 @@
 ///
 /// @copyright (c) 2024 Darren V Levine. This code is licensed under MIT license (see LICENSE file for details).
 ///
-#ifndef CPPTXRX_UDP_RAW_H_
-#define CPPTXRX_UDP_RAW_H_
+#ifndef CPPTXRX_DEFAULT_UDP_RAW_H_
+#define CPPTXRX_DEFAULT_UDP_RAW_H_
 
 #include "cpptxrx_raw.h"
 #include <arpa/inet.h>
@@ -150,7 +150,7 @@ namespace udp
                     conn.transactions.p_open_op->end_op_with_error_code(static_cast<unsigned int>(errno), "SOCK_CREATE_FAILURE");
             }
 
-            if (conn.transactions.p_open_op->status != interface::status_e::IN_PROGRESS)
+            if (!conn.transactions.p_open_op->is_operating())
                 return;
 
             int option = 1;
@@ -271,8 +271,8 @@ namespace udp
                                             0, reinterpret_cast<sockaddr *>(&conn.m_open_opts.m_address), &conn.m_open_opts.m_address_size);
                 if (read_size >= 0)
                 {
-                    conn.transactions.p_recv_op->status             = interface::status_e::SUCCESS;
-                    conn.transactions.p_recv_op->returned_recv_size = static_cast<size_t>(read_size);
+                    conn.transactions.p_recv_op->status        = interface::status_e::SUCCESS;
+                    conn.transactions.p_recv_op->received_size = static_cast<size_t>(read_size);
                 }
                 else
                 {
@@ -303,32 +303,32 @@ namespace udp
     class socket_raw : public interface::raw<opts>
     {
     public:
-        IMPORT_CPPTXRX_CTOR_AND_DTOR(socket_raw);
+        CPPTXRX_IMPORT_CTOR_AND_DTOR(socket_raw);
 
-        [[nodiscard]] virtual const char *name() const override { return "udp::socket_raw"; }
-        [[nodiscard]] virtual int id() const override { return 0x0B83; }
+        [[nodiscard]] virtual const char *name() const final { return "udp::socket_raw"; }
+        [[nodiscard]] virtual int id() const final { return 0x0B83; }
 
     protected:
         friend struct socket_utilities;
         socket_utilities utils = {};
 
-        void construct() override
+        void construct() final
         {
             utils.construct<false>();
         }
-        void destruct() override
+        void destruct() final
         {
             utils.destruct<false>();
         }
-        void process_close() override
+        void process_close() final
         {
             utils.process_close(*this);
         }
-        void process_open() override
+        void process_open() final
         {
             utils.process_open(*this);
         }
-        void process_send_receive() override
+        void process_send_receive() final
         {
             utils.process_send_receive<false>(*this);
         }
@@ -336,4 +336,4 @@ namespace udp
 
 } // namespace udp
 
-#endif // CPPTXRX_UDP_RAW_H_
+#endif // CPPTXRX_DEFAULT_UDP_RAW_H_

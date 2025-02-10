@@ -14,21 +14,21 @@ namespace interface
 {
     class backend
     {
-        template <typename, uint64_t, uint64_t, uint64_t, uint64_t>
+        template <typename, typename>
         friend class threadsafe_factory;
 
-        template <typename, uint64_t, uint64_t, uint64_t, uint64_t>
+        template <typename, typename>
         friend class raw_factory;
 
         /// @brief the supported underlying operation categories
         enum class op_category_e : int
         {
             OPEN      = 0,
-            CLOSE     = 3,
-            SEND      = 6,
-            RECEIVE   = 9,
-            DESTROY   = 12,
-            CONSTRUCT = 15
+            CLOSE     = 4,
+            SEND      = 8,
+            RECEIVE   = 12,
+            DESTROY   = 16,
+            CONSTRUCT = 20
         };
 
         /// @brief allows fast lookup and tracking of multiple simultaneous operations and their progress
@@ -39,23 +39,25 @@ namespace interface
 
             // masks for each phase a operation, meant to be shifted relative to their
             // operation category
-            static constexpr type REL_REQUEST  = 0b001;
-            static constexpr type REL_ACCEPT   = 0b010;
-            static constexpr type REL_COMPLETE = 0b100;
+            static constexpr type REL_REQUEST  = 0b0001;
+            static constexpr type REL_ACCEPT   = 0b0010;
+            static constexpr type REL_COMPLETE = 0b0100;
+            static constexpr type REL_DISABLE  = 0b1000; // meant to disable actions on this operation
             static constexpr type REL_ALL      = REL_REQUEST | REL_ACCEPT | REL_COMPLETE;
 
             // individual bit masks for some select options
-            static constexpr type NONE              = 0;
-            static constexpr type OPEN_REQUEST      = REL_REQUEST << static_cast<int>(op_category_e::OPEN);
-            static constexpr type ANY_OPEN          = REL_ALL << static_cast<int>(op_category_e::OPEN);
-            static constexpr type CLOSE_REQUEST     = REL_REQUEST << static_cast<int>(op_category_e::CLOSE);
-            static constexpr type ANY_CLOSE         = REL_ALL << static_cast<int>(op_category_e::CLOSE);
-            static constexpr type SEND_REQUEST      = REL_REQUEST << static_cast<int>(op_category_e::SEND);
-            static constexpr type RECEIVE_REQUEST   = REL_REQUEST << static_cast<int>(op_category_e::RECEIVE);
-            static constexpr type DESTROY_REQUEST   = REL_REQUEST << static_cast<int>(op_category_e::DESTROY);
-            static constexpr type ANY_DESTROY       = REL_ALL << static_cast<int>(op_category_e::DESTROY);
-            static constexpr type ANY_REQUEST       = OPEN_REQUEST | CLOSE_REQUEST | SEND_REQUEST | RECEIVE_REQUEST | DESTROY_REQUEST;
-            static constexpr type ANY_OPEN_OR_CLOSE = ANY_OPEN | ANY_CLOSE;
+            static constexpr type NONE                        = 0;
+            static constexpr type OPEN_REQUEST                = REL_REQUEST << static_cast<int>(op_category_e::OPEN);
+            static constexpr type ANY_OPEN                    = REL_ALL << static_cast<int>(op_category_e::OPEN);
+            static constexpr type CLOSE_REQUEST               = REL_REQUEST << static_cast<int>(op_category_e::CLOSE);
+            static constexpr type ANY_CLOSE                   = REL_ALL << static_cast<int>(op_category_e::CLOSE);
+            static constexpr type SEND_REQUEST                = REL_REQUEST << static_cast<int>(op_category_e::SEND);
+            static constexpr type RECEIVE_REQUEST             = REL_REQUEST << static_cast<int>(op_category_e::RECEIVE);
+            static constexpr type DESTROY_REQUEST             = REL_REQUEST << static_cast<int>(op_category_e::DESTROY);
+            static constexpr type ANY_DESTROY                 = REL_ALL << static_cast<int>(op_category_e::DESTROY);
+            static constexpr type DESTROY_ACCEPT_OR_COMPLETED = (REL_ACCEPT | REL_COMPLETE) << static_cast<int>(op_category_e::DESTROY);
+            static constexpr type ANY_REQUEST                 = OPEN_REQUEST | CLOSE_REQUEST | SEND_REQUEST | RECEIVE_REQUEST | DESTROY_REQUEST;
+            static constexpr type ANY_OPEN_OR_CLOSE           = ANY_OPEN | ANY_CLOSE;
 
             /// @brief hold all the bit-packed information about all operations for an interface
             type value = NONE;
@@ -90,6 +92,12 @@ namespace interface
                 return (value & (REL_COMPLETE << static_cast<int>(option))) != 0;
             }
 
+            /// @brief returns true if the passed operation category is disabled
+            inline constexpr bool is_disabled(op_category_e option) const noexcept
+            {
+                return (value & (REL_DISABLE << static_cast<int>(option))) != 0;
+            }
+
             // The stages/pipeline of an operation are:
             // 1.   REQUESTER:   starts the request using "start_request(op)"
             // 2.     PROCESSOR:   accepts the request using "accept_request(op)"
@@ -122,6 +130,18 @@ namespace interface
             inline constexpr void end_request(op_category_e option) noexcept
             {
                 value &= ~(REL_ALL << static_cast<int>(option)); // clear
+            }
+
+            /// @brief ends the passed operation category
+            inline constexpr void disable_op(op_category_e option) noexcept
+            {
+                value |= REL_DISABLE << static_cast<int>(option); // set
+            }
+
+            /// @brief ends the passed operation category
+            inline constexpr void enable_op(op_category_e option) noexcept
+            {
+                value &= ~(REL_DISABLE << static_cast<int>(option)); // clear
             }
         };
     };

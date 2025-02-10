@@ -1,4 +1,10 @@
-/// @brief This example demonstrates how an already wrapped raw cpptxrx UDP interface can be used
+/// @brief This example walks through the basics of how an existing raw cpptxrx class can
+// be used: send(), receive(), open(), close(), reopen(), get_open_args(), etc.
+//
+// NOTE: This example is nearly the same as the "01_using_a_threadsafe_interface.cpp" example,
+//       but with one difference: The "raw" API isn not thread safe, so multiple threads are not used.
+//                                While the "threadsafe" API is thread safe, so multiple threads are used.
+
 #include "../include/default_udp_raw.h"
 #include <stdio.h>
 
@@ -32,7 +38,7 @@ int main()
     else
         printf("server open error: %s (%s)\n",
                server.open_status().c_str(),
-               std::strerror(server.open_status().get_error_code()));
+               server.open_status().error_c_str());
 
     // A interfaces can also be created without opening on construction
     udp::socket_raw client;
@@ -105,4 +111,6 @@ int main()
         printf("server received: \"%s\" (size=%zu bytes, status=%s)\n",
                rx_data, rx_result_info.size, rx_result_info.status.c_str());
     }
+
+    return 0;
 }

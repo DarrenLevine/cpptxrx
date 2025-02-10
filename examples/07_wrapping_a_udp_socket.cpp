@@ -1,4 +1,4 @@
-/// @brief This is a working example of how to create a interface wrapper using CppTxRx for a UDP socket.
+/// @brief This is a working example of how to create a interface wrapper using CppTxRx, specifically for a UDP socket.
 
 // headers needed for udp sockets
 #include <arpa/inet.h>
@@ -74,21 +74,22 @@ namespace udp
 
     // Step 3) inherit from either "interface::thread_safe<opts>" to create a thread safe interface
     // or "interface::raw<opts>" for a non-threadsafe interface
-    // and fill out the template arguments (note that the timeouts are optional)
+    // and fill out the template arguments (note that the timeouts are optional, and just defaults if the operations do not specify any)
     class socket : public interface::thread_safe<
-                       opts,                                                       // (REQUIRED) options to use when calling "open"
-                       std::chrono::nanoseconds(std::chrono::seconds(30)).count(), // (OPTIONAL) default recv timeout in ns
-                       std::chrono::nanoseconds(std::chrono::seconds(1)).count(),  // (OPTIONAL) default send timeout in ns
-                       std::chrono::nanoseconds(std::chrono::seconds(1)).count(),  // (OPTIONAL) default open timeout in ns
-                       std::chrono::nanoseconds(std::chrono::seconds(1)).count()>  // (OPTIONAL) default close timeout in ns
+                       opts, // (REQUIRED) options to use when calling "open"
+                       interface::timeouts<
+                           std::chrono::nanoseconds(std::chrono::seconds(30)).count(), // (OPTIONAL) default recv timeout in ns
+                           std::chrono::nanoseconds(std::chrono::seconds(1)).count(),  // (OPTIONAL) default send timeout in ns
+                           std::chrono::nanoseconds(std::chrono::seconds(1)).count(),  // (OPTIONAL) default open timeout in ns
+                           std::chrono::nanoseconds(std::chrono::seconds(1)).count()>> // (OPTIONAL) default close timeout in ns
     {
     public:
         // Step 4) some of the necessary constructor/destructor functions must be imported
-        IMPORT_CPPTXRX_CTOR_AND_DTOR(socket);
+        CPPTXRX_IMPORT_CTOR_AND_DTOR(socket);
 
         // optionally, feel free to name and/or id your new interface:
-        [[nodiscard]] virtual const char *name() const override { return "udp::socket"; }
-        [[nodiscard]] virtual int id() const override { return 0x4208; }
+        [[nodiscard]] virtual const char *name() const final { return "udp::socket"; }
+        [[nodiscard]] virtual int id() const final { return 0x4208; }
 
     private:
         // Step 5) override the following methods with your implementation
@@ -102,7 +103,7 @@ namespace udp
         int socket_wake_fd = -1;
         int socket_fd      = -1;
 
-        void construct() override
+        void construct() final
         {
             signal(SIGPIPE, SIG_IGN);
 
@@ -111,7 +112,7 @@ namespace udp
                 raise(SIGSEGV);
         }
 
-        void destruct() override
+        void destruct() final
         {
             if (socket_fd != -1 && ::close(socket_fd) == -1)
                 raise(SIGSEGV);
@@ -141,14 +142,14 @@ namespace udp
         // WARNING!: wake_process is the only "overridden" method that can be called from other threads.
         // WARNING!: The wake signal must be sticky (like a eventfd object), since there's no guarantee that wake_process
         //       will be called precisely when your process_ method is performing a block or reading the wake signal.
-        void wake_process() override
+        void wake_process() final
         {
             uint64_t val = 1;
             if (::write(socket_wake_fd, &val, sizeof(val)) != sizeof(val))
                 raise(SIGSEGV);
         }
 
-        void process_close() override
+        void process_close() final
         {
             if (close_socket())
                 transactions.p_close_op->end_op(interface::status_e::SUCCESS);
@@ -156,7 +157,7 @@ namespace udp
                 transactions.p_close_op->end_op_with_error_code(EIO, "CLOSE_FAILED");
         }
 
-        void process_open() override
+        void process_open() final
         {
             // make sure the socket is closed first
             if (!close_socket())
@@ -174,7 +175,7 @@ namespace udp
                     transactions.p_open_op->end_op_with_error_code(static_cast<unsigned int>(errno), "SOCK_CREATE_FAILURE");
             }
 
-            if (transactions.p_open_op->status != interface::status_e::IN_PROGRESS)
+            if (!transactions.p_open_op->is_operating())
                 return;
 
             int option = 1;
@@ -196,7 +197,7 @@ namespace udp
             transactions.p_open_op->end_op(interface::status_e::SUCCESS);
         }
 
-        void process_send_receive() override
+        void process_send_receive() final
         {
             // convert min_timeout to timeval
             auto min_timeout = transactions.duration_until_timeout({transactions.p_recv_op, transactions.p_send_op});
@@ -290,8 +291,9 @@ namespace udp
                                             0, reinterpret_cast<sockaddr *>(&m_open_opts.m_address), &m_open_opts.m_address_size);
                 if (read_size >= 0)
                 {
-                    transactions.p_recv_op->status             = interface::status_e::SUCCESS;
-                    transactions.p_recv_op->returned_recv_size = static_cast<size_t>(read_size);
+                    transactions.p_recv_op->status           = interface::status_e::SUCCESS;
+                    transactions.p_recv_op->received_size    = static_cast<size_t>(read_size);
+                    transactions.p_recv_op->received_channel = socket_fd;
                 }
                 else
                 {
@@ -329,8 +331,10 @@ int main()
                            .port(1234)
                            .ipv4_address("127.0.0.1"),
 
-                       // you can also optionally specify a timeout for open, reopen, send, and receive
-                       std::chrono::seconds(10));
+                       // you can also optionally specify a timeout or other common options,
+                       // like attaching receive_callback functions to receive automatically
+                       interface::common_opts()
+                           .open_timeout(std::chrono::seconds(10)));
 
     // We expect the connection to now be open, there are several ways to check the status of the last
     // run open operation:
@@ -346,7 +350,7 @@ int main()
     else
         thread_printf("server open error: %s (%s)\n",
                       server.open_status().c_str(),
-                      std::strerror(server.open_status().get_error_code()));
+                      server.open_status().error_c_str());
 
     // A interfaces can also be created without opening on construction
     udp::socket client;
@@ -388,7 +392,7 @@ int main()
             [&]()
             {
                 const uint8_t tx_data[] = "hello 1!";
-                auto send_status        = client.send(tx_data, sizeof(tx_data));
+                auto send_status        = client.send(tx_data);
                 thread_printf("client sent: \"%s\" (size=%zu bytes, status=%s)\n",
                               tx_data, sizeof(tx_data), send_status.c_str());
             });
@@ -397,12 +401,12 @@ int main()
             [&]()
             {
                 const uint8_t tx_data[] = "hello 2!";
-                auto send_status        = client.send(tx_data, sizeof(tx_data));
+                auto send_status        = client.send(tx_data);
                 thread_printf("client sent: \"%s\" (size=%zu bytes, status=%s)\n",
                               tx_data, sizeof(tx_data), send_status.c_str());
 
                 uint8_t rx_data[100] = {};
-                auto rx_result_info  = client.receive(rx_data, sizeof(rx_data));
+                auto rx_result_info  = client.receive(rx_data);
                 thread_printf("client received: \"%s\" (size=%zu bytes, status=%s)\n",
                               rx_data, rx_result_info.size, rx_result_info.status.c_str());
             });
@@ -411,12 +415,12 @@ int main()
             [&]()
             {
                 uint8_t rx_data[100] = {};
-                auto rx_result_info  = server.receive(rx_data, sizeof(rx_data));
+                auto rx_result_info  = server.receive(rx_data);
                 thread_printf("server received: \"%s\" (size=%zu bytes, status=%s)\n",
                               rx_data, rx_result_info.size, rx_result_info.status.c_str());
 
                 const uint8_t tx_data[] = "hello 3!";
-                auto send_status        = server.send(tx_data, sizeof(tx_data));
+                auto send_status        = server.send(tx_data);
                 thread_printf("server sent: \"%s\" (size=%zu bytes, status=%s)\n",
                               tx_data, sizeof(tx_data), send_status.c_str());
             });
@@ -425,7 +429,7 @@ int main()
             [&]()
             {
                 uint8_t rx_data[100] = {};
-                auto rx_result_info  = server.receive(rx_data, sizeof(rx_data));
+                auto rx_result_info  = server.receive(rx_data);
                 thread_printf("server received: \"%s\" (size=%zu bytes, status=%s)\n",
                               rx_data, rx_result_info.size, rx_result_info.status.c_str());
             });
@@ -437,7 +441,7 @@ int main()
         [&]()
         {
             uint8_t rx_data[100] = {};
-            auto rx_result_info  = server.receive(rx_data, sizeof(rx_data), std::chrono::seconds(300));
+            auto rx_result_info  = server.receive(rx_data, std::chrono::seconds(300));
             thread_printf("server received: \"%s\" (size=%zu bytes, status=%s)\n",
                           rx_data, rx_result_info.size, rx_result_info.status.c_str());
         });
@@ -447,4 +451,6 @@ int main()
             thread_printf("closing server from another thread\n");
             server.close();
         });
+
+    return 0;
 }

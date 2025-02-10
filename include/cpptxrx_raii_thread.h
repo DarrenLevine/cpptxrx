@@ -23,11 +23,7 @@ namespace interface
         using std::thread::joinable;
         using std::thread::native_handle;
         using std::thread::native_handle_type;
-        inline raii_thread &operator=(raii_thread &&d)
-        {
-            std::thread::operator=(std::forward<raii_thread>(d));
-            return *this;
-        }
+        using std::thread::operator=;
         using std::thread::swap;
         using std::thread::thread;
         inline ~raii_thread()

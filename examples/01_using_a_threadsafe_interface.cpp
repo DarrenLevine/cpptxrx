@@ -1,4 +1,10 @@
-/// @brief This example demonstrates how an already wrapped threadsafe cpptxrx UDP interface can be used
+/// @brief This example walks through the basics of how an existing threadsafe cpptxrx class can
+// be used: send(), receive(), open(), close(), reopen(), get_open_args(), etc.
+//
+// NOTE: This example is nearly the same as the "02_using_a_raw_interface.cpp" example,
+//       but with one difference: The "raw" API isn not thread safe, so multiple threads are not used.
+//                                While the "threadsafe" API is thread safe, so multiple threads are used.
+
 #include "../include/default_udp.h"
 #include "utils/printing.h" // defines thread_printf for thread safe printing
 
@@ -22,9 +28,7 @@ int main()
     if (server)
         thread_printf("server(%s) is open!\n", server.name());
     else
-        thread_printf("server open error: %s (%s)\n",
-                      server.open_status().c_str(),
-                      std::strerror(server.open_status().get_error_code()));
+        thread_printf("server open error: %s (%s)\n", server.open_status().c_str(), server.open_status().error_c_str());
 
     // A interfaces can also be created without opening on construction
     udp::socket client;
@@ -44,10 +48,11 @@ int main()
 
     // A interface can be closed as easily
     status = client.close();
-    thread_printf("Close operation status = %s, Current client status = %s\n", status.c_str(), client.open_status().c_str());
+    thread_printf("Close operation status = %s, Current client status = %s\n",
+                  status.c_str(), client.open_status().c_str());
 
-    // Now that there are default options are stored, you can call reopen the connection using the last
-    // arguments at any time or specify new arguments.
+    // Now that there are open options stored (the last open args), you can call reopen the connection
+    // using the last arguments at any time or specify new arguments.
     // Note: In this instance, .open() would also work. The difference between ".open()" and ".reopen()"
     //       is that if ".open()" is called while the interface is already open it will fail, but if
     //       ".reopen()" is called while the interface is already open, it will first be closed.
@@ -94,7 +99,7 @@ int main()
                               rx_data, rx_result_info.size, rx_result_info.status.c_str());
 
                 const uint8_t tx_data[] = "hello 3!";
-                auto send_status        = server.send(tx_data, sizeof(tx_data));
+                auto send_status        = server.send(tx_data);
                 thread_printf("server sent: \"%s\" (size=%zu bytes, status=%s)\n",
                               tx_data, sizeof(tx_data), send_status.c_str());
             });
@@ -103,7 +108,7 @@ int main()
             [&]()
             {
                 uint8_t rx_data[100] = {};
-                auto rx_result_info  = server.receive(rx_data, sizeof(rx_data));
+                auto rx_result_info  = server.receive(rx_data);
                 thread_printf("server received: \"%s\" (size=%zu bytes, status=%s)\n",
                               rx_data, rx_result_info.size, rx_result_info.status.c_str());
             });
@@ -139,4 +144,6 @@ int main()
             thread_printf("closing server from another thread\n");
             server.close();
         });
+
+    return 0;
 }
