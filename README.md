@@ -9,6 +9,7 @@ A framework for turning existing low-level communication libraries into high-lev
 **Table of Contents**
 
 - [Features](#features)
+- [Installation](#installation)
 - [Motivation](#motivation)
 - [Examples](#examples)
   - [Receive Callbacks](#receive-callbacks-functions-to-get-called-when-new-data-is-received)
@@ -58,6 +59,21 @@ A framework for turning existing low-level communication libraries into high-lev
     - Takes a very simple approach to thread safety: Isolates all your low-level communication library's API calls to a single dedicated thread (construction, opening, sending, receiving, closing, and destruction). Then gives you efficient/safe ways of interfacing with that thread using the cpptxrx API, which behind the scenes uses a single bit-masked integer for speedy communication.
   - Memory:
     - Avoids all dynamic memory allocation, such as `std::vector`/`std::function`/etc., with the possible exception of any dynamic allocations your platform's stdlib implementation might need for OS primitives, such as the single `std::thread` instance in the `interface::thread_safe` class. Note that you can still allow dynamically allocated object usage by explicitly using `interface::allow_heap(object)` for filter and callback objects.
+
+## Installation
+
+The library is header only, so just add `cpptxrx/include/` to your search path via the -I flag: `-Iwherever/you/placed/cpptxrx/include/`.
+
+For Cmake, the `target_include_directories` can do that, for example:
+
+```sh
+# if you're not using a local copy of cpptxrx, here's how to fetch it automatically:
+include(FetchContent)
+FetchContent_Populate(cpptxrx GIT_REPOSITORY https://github.com/DarrenLevine/cpptxrx.git)
+
+# include the cpptxrx/include folder:
+target_include_directories(your_program_name PUBLIC "${cpptxrx_SOURCE_DIR}/include")
+```
 
 ## Motivation
 
