@@ -64,7 +64,7 @@ A framework for turning existing low-level communication libraries into high-lev
 
 The library is header only, so just add `cpptxrx/include/` to your search path via the -I flag: `-Iwherever/you/placed/cpptxrx/include/`.
 
-For Cmake, the `target_include_directories` can do that, for example:
+Or for Cmake, you can do that via the following lines:
 
 ```sh
 # if you're not using a local copy of cpptxrx, here's how to fetch it automatically:
@@ -72,7 +72,8 @@ include(FetchContent)
 FetchContent_Populate(cpptxrx GIT_REPOSITORY https://github.com/DarrenLevine/cpptxrx.git)
 
 # include the cpptxrx/include folder:
-target_include_directories(your_program_name PUBLIC "${cpptxrx_SOURCE_DIR}/include")
+add_subdirectory("${cpptxrx_SOURCE_DIR}")
+target_link_libraries(your_program_name cpptxrx)
 ```
 
 ## Motivation
